@@ -4,6 +4,7 @@ class ProxyManager :
     def __init__(self):
         self.__server = Server(path=ProxyManager.__BMP,options={"port" : 9080})
         self.__client = None
+        
     def start_server(self) :
         self.__server.start()
         return self.__server

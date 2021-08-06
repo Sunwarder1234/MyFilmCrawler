@@ -32,6 +32,7 @@ class PhimmoiCrawler :
         options.add_argument('--ignore-ssl-errors=yes')
         options.add_argument('--ignore-certificate-errors')
         options.add_argument('--disable-gpu')
+        options.add_argument("--proxy-bypass-list=*247phim*")
         driver = webdriver.Chrome(executable_path=r"C:\Users\Sun\Desktop\chromedriver", chrome_options=options,desired_capabilities=options.to_capabilities())
         driver.get(url)
         time.sleep(4)
@@ -48,37 +49,20 @@ class PhimmoiCrawler :
         global server
         print("Hi "+sys.argv[1])
         index = sys.argv[1] or input("Type a index to start from")
-        films_item = driver.find_elements_by_css_selector("a.movie-item")
+        films_item = driver.find_elements_by_css_selector(".list-vod .item a")
         film_links = []
         for i in range(int(index),len(films_item)) :
            film_links.append(films_item.__getitem__(int(i)).get_attribute("href")) 
         for i in range(int(index),len(film_links)) :
            driver.get(film_links[i])
-           self.interactSiteToAjaxCome(1)
-           driver.get(driver.find_element_by_id("btn-film-watch").get_attribute("href"))
-           time.sleep(10)
-           driver.find_element_by_css_selector("#mediaplayer").click()
-           driver.find_element_by_css_selector("#mediaplayer").send_keys(Keys.SPACE)
            
-           client.new_har()
-           time.sleep(1)
-           result = json.dumps(client.har)
-           data = json.loads(result)
-           print(data)
+           driver.execute_script("document.querySelector('#btnPlay').click()")
+           time.sleep(10)
+           driver.execute_script("document.querySelector('#video').click()")
+           driver.find_element_by_css_selector("#video").send_keys(Keys.SPACE)
 
            self.getM3U8File()
-    def reLoadToGetM3U8File(self) :
-        global client
-        global server
-        global driver
-        driver.send_keys(Keys.F5)
-        self.interactSiteToAjaxCome(1)
-        driver.get(driver.find_element_by_id("btn-film-watch").get_attribute("href"))
-        time.sleep(10)
-        driver.find_element_by_css_selector("#mediaplayer").click()
-        driver.find_element_by_css_selector("#mediaplayer").send_keys(Keys.SPACE)
-        
-        self.getM3U8File()
+    
     def getM3U8File(self) :
         global client
         global server
@@ -86,27 +70,22 @@ class PhimmoiCrawler :
         print(client.proxy)
         count = 0
         while(True) : 
-            htmlpage = driver.page_source
-            pageSoup = BeautifulSoup(htmlpage,"html.parser")
-            pageSoupStr = str(pageSoup)
-            with open("htmlpagesource","a", encoding="utf-8") as f :
-                if(input("Is Permit Write? ") == 'y') :
-                    f.write(urllib.parse.unquote(pageSoupStr))
-                
             try : 
                 client.new_har()
                 time.sleep(1)
                 result = json.dumps(client.har)
                 data = json.loads(result)
-                if(str(data['log']['entries'][0]['request']['url']).__contains__("m3u8")) :
-                    
-                    with open("proxy","a") as f :
-                        print(data['log']['entries'][0]['request']['url'])
-                        f.write(data['log']['entries'][0]['request']['url'])   
-                        count = count + 1
-                        if(count == 10) : 
-                            break
-                self.reLoadToGetM3U8File()
+                print(data['log']['entries'])
+                for entry in data['log']['entries'] : 
+
+                    if(str(entry['request']['url']).__contains__("m3u8")) :
+                        
+                        with open("proxy247phim","a") as f :
+                            print(entry['request']['url'])
+                            f.writelines(entry['request']['url'])   
+                            
+                            return 0
+                            
             except : 
                 x = 1
     def getFilmsData(self) :
@@ -121,7 +100,7 @@ class PhimmoiCrawler :
             result = json.dumps(client.har)
             data = json.loads(result)
 
-            with open("proxy","a") as f :
+            with open("proxy247phim","a") as f :
                 print(data['log']['entries'][0]['request']['url'])
                 f.write(data['log']['entries'][0]['request']['url'])
 
@@ -133,6 +112,6 @@ class PhimmoiCrawler :
 
 
 
-crawler = PhimmoiCrawler("https://phimmoiplus.net/genre/phim-hanh-dong")
-crawler.interactSiteToAjaxCome(9)
+crawler = PhimmoiCrawler("https://247phim.com/phim/hanh-dong/")
+crawler.interactSiteToAjaxCome(6)
 crawler.GoIntoFilm()

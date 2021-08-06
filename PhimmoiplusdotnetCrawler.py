@@ -58,11 +58,48 @@ class PhimmoiCrawler :
            time.sleep(10)
            driver.find_element_by_css_selector("#mediaplayer").click()
            driver.find_element_by_css_selector("#mediaplayer").send_keys(Keys.SPACE)
-           time.sleep(50)
-           
-           
-           self.getFilmsData()
-           
+           client.new_har()
+           time.sleep(1)
+           result = json.dumps(client.har)
+           data = json.loads(result)
+           print(data)
+           self.getM3U8File()
+    def reLoadToGetM3U8File(self) :
+        global client
+        global server
+        global driver
+        driver.send_keys(Keys.F5)
+        self.interactSiteToAjaxCome(1)
+        driver.get(driver.find_element_by_id("btn-film-watch").get_attribute("href"))
+        time.sleep(10)
+        driver.find_element_by_css_selector("#mediaplayer").click()
+        driver.find_element_by_css_selector("#mediaplayer").send_keys(Keys.SPACE)
+        
+        self.getM3U8File()
+    def getM3U8File(self) :
+        global client
+        global server
+        global driver
+        print(client.proxy)
+        count = 0
+        while(True) : 
+            try : 
+                client.new_har()
+                time.sleep(1)
+                result = json.dumps(client.har)
+                data = json.loads(result)
+                if(str(data['log']['entries'][0]['request']['url']).__contains__("m3u8")) :
+                    
+                    with open("proxy","a") as f :
+                        print(data['log']['entries'][0]['request']['url'])
+                        f.write(data['log']['entries'][0]['request']['url'])   
+                        count = count + 1
+                        if(count == 10) : 
+                            break
+                self.reLoadToGetM3U8File()
+
+            except : 
+                print("")
     def getFilmsData(self) :
         global client
         global server

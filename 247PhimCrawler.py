@@ -1,10 +1,13 @@
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import selenium
 import time
 import sys
 import json
-from bs4 import BeautifulSoup
+from unidecode import unidecode
+from VideoDownloader import m3u8download
+from parsel import Selector
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote import webelement
@@ -14,12 +17,16 @@ from selenium.webdriver.common.by import By
 from browsermobproxy import Server
 from ProxyManagerModule import ProxyManager
 import pprint
-import urllib.parse
+from urllib.parse import unquote
+import re
+from bs4 import BeautifulSoup
+import openpyxl
 proxy = ProxyManager()
 server = proxy.start_server()
 client = proxy.start_client()
 time.sleep(4)
 driver = ""
+m3u8FileParReg = re.compile(r".m3u8")
 class PhimmoiCrawler : 
     
     def __init__(self,url) -> None:
@@ -47,71 +54,92 @@ class PhimmoiCrawler :
         global driver
         global client
         global server
-        print("Hi "+sys.argv[1])
         index = sys.argv[1] or input("Type a index to start from")
-        films_item = driver.find_elements_by_css_selector(".list-vod .item a")
-        film_links = []
-        for i in range(int(index),len(films_item)) :
-           film_links.append(films_item.__getitem__(int(i)).get_attribute("href")) 
-        for i in range(int(index),len(film_links)) :
-           driver.get(film_links[i])
+        for page in range(4, 45) : 
+            
+            films_item = driver.find_elements_by_css_selector(".list-vod .item > a")
+            film_links = []
+            filmDatas = {}
+            for i in range(int(index),len(films_item)) :
+                film_links.append(films_item.__getitem__(int(i)).get_attribute("href")) 
+            for i in range(int(index),len(film_links)) :
+                time.sleep(4)
+                driver.get(film_links[i])
+                try : 
+                    filmDatas = self.getFilmsData()
+                except : 
+                    z=1
            
-           driver.execute_script("document.querySelector('#btnPlay').click()")
-           time.sleep(10)
-           driver.execute_script("document.querySelector('#video').click()")
-           driver.find_element_by_css_selector("#video").send_keys(Keys.SPACE)
+                driver.execute_script("document.querySelector('#btnPlay').click()")
+                time.sleep(10)
+                driver.execute_script("document.querySelector('#video').click()")
+                driver.find_element_by_css_selector("#video").send_keys(Keys.SPACE)
+                
 
-           self.getM3U8File()
-    
-    def getM3U8File(self) :
+                filmDatas['videoname'] = self.getM3U8File(filmDatas,film_links[i])
+
+                self.pushIntoExel(filmDatas)
+                print("Page "+str(page)+" , Index" + str(i))
+            driver.get("https://247phim.com/phim/phim-le/nam/2021/trang-{}".format(page))        
+
+    def getM3U8File(self,filmDatas,currenturl) :
         global client
         global server
         global driver
         print(client.proxy)
         count = 0
-        while(True) : 
+        global m3u8FileParReg
+        while(True) :      
             try : 
                 client.new_har()
                 time.sleep(1)
                 result = json.dumps(client.har)
                 data = json.loads(result)
-                print(data['log']['entries'])
                 for entry in data['log']['entries'] : 
 
-                    if(str(entry['request']['url']).__contains__("m3u8")) :
-                        
-                        with open("proxy247phim","a") as f :
-                            print(entry['request']['url'])
-                            f.writelines(entry['request']['url'])   
-                            
-                            return 0
+                    if(m3u8FileParReg.search(str(entry['request']['url']))) :
+                        videoname = unidecode(filmDatas['filmname_vi'].replace(" ",""))
+                        m3u8download(unquote(entry['request']['url']),videoname,currenturl)
+                        return videoname
                             
             except : 
                 x = 1
     def getFilmsData(self) :
-        global client
-        global server
         global driver
-        time.sleep(15)
-        print(client.proxy)
-        while(True) : 
-            client.new_har()
-            time.sleep(5)
-            result = json.dumps(client.har)
-            data = json.loads(result)
-
-            with open("proxy247phim","a") as f :
-                print(data['log']['entries'][0]['request']['url'])
-                f.write(data['log']['entries'][0]['request']['url'])
-
-        
-        
-        
-        
+        filmDatas = {}
+        time.sleep(5)
+        pageSoup = BeautifulSoup(driver.page_source, "html.parser")
+        filmDetailSelector = pageSoup.select_one(".detail-vod-left .detail")
+        filmDatas['filmtype'] = filmDetailSelector.select_one(".detail-info a:nth-child(2)").find(text=True,recursive=False)
+        filmDatas['publishYear'] = filmDetailSelector.select_one(".detail-info a:last-child").find(text=True,recursive=False).replace("'","")
+        filmDatas['filmname_vi'] = filmDetailSelector.select_one("h2.title-vod").find(text=True,recursive=False).replace("'","")
         
 
+        filmDatas['filmname_eng'] = filmDetailSelector.select_one("h3.title-vod").find(text=True,recursive=False).replace("'","")
+        filmDatas['filmdescription'] =filmDetailSelector.select_one("div.mt-2:nth-child(6) p").find(text=True,recursive=False).replace("'","").replace(u'\xa0', u' ')
+
+        filmDatas['duration'] = [text for text in filmDetailSelector.select_one("div.mt-4:nth-child(7) > div:first-child > ul.more-info > li:first-child").stripped_strings][1]
+        
+        filmDatas['director'] = filmDetailSelector.select_one("div.mt-4:nth-child(7) > div:first-child ul.more-info li:nth-child(2)").find(text=True,recursive=False).replace("'","")
+        filmDatas['country'] = filmDetailSelector.select_one("div.mt-4:nth-child(7) > div:first-child ul.more-info li:nth-child(3)").find(text=True,recursive=False).replace("'","")
+        filmDatas['category'] = " ".join(filmDetailSelector.select_one("div.mt-4:nth-child(7) > div:first-child ul.more-info li:nth-child(4)").find(text=True,recursive=False).strip().replace("\n"," ").rstrip("'").replace("'","").replace("\r","").split())
+        filmDatas['IMDB'] = filmDetailSelector.select_one("div.mt-4:nth-child(7) > div:first-child ul.more-info li:nth-child(6)").find(text=True,recursive=False).replace("'","")
+        filmDatas['cast'] = filmDetailSelector.select_one("div.mt-4:nth-child(7) > div:last-child ul.more-info li").find(text=True,recursive=False).replace("'","")
+        return filmDatas
+        
+    def pushIntoExel(self, filmDatas) : 
+        wb = openpyxl.load_workbook("247PhimLe.xlsx")
+        sheet1 = wb.active
+        for rowindex in range(sheet1.max_row+1,sheet1.max_row+2) : 
+            for columnindex in range(1,sheet1.max_column+1) : 
+                
+                sheet1.cell(rowindex,column=columnindex).value = filmDatas[sheet1.cell(1,columnindex).value]
+
+        wb.save("247PhimLe.xlsx")
+        wb.close()
 
 
-crawler = PhimmoiCrawler("https://247phim.com/phim/hanh-dong/")
+
+crawler = PhimmoiCrawler("https://247phim.com/phim/phim-le/nam/2021/trang-4")
 crawler.interactSiteToAjaxCome(6)
 crawler.GoIntoFilm()

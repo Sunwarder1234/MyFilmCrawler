@@ -1,4 +1,9 @@
 from browsermobproxy import Server
+from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+import time
 class ProxyManager :
     __BMP = r"D:\browsermob-proxy-2.1.4\bin\browsermob-proxy.bat"
     def __init__(self):
@@ -9,9 +14,11 @@ class ProxyManager :
         self.__server.start()
         return self.__server
     def start_client(self) :
+        
         self.__client = self.__server.create_proxy()
         return self.__client
     
+
     @property
     def client(self) :
         return self.__client

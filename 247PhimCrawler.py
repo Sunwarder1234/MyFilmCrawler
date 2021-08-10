@@ -6,8 +6,6 @@ import time
 import sys
 import json
 from unidecode import unidecode
-from VideoDownloader import m3u8download
-from parsel import Selector
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote import webelement
@@ -40,7 +38,7 @@ class PhimmoiCrawler :
         options.add_argument('--ignore-certificate-errors')
         options.add_argument('--disable-gpu')
         options.add_argument("--proxy-bypass-list=*247phim*")
-        driver = webdriver.Chrome(executable_path=r"C:\Users\Sun\Desktop\chromedriver", chrome_options=options,desired_capabilities=options.to_capabilities())
+        driver = webdriver.Chrome(executable_path=r"/home/sunwarder/bin/chromedriver_linux64/chromedriver", chrome_options=options,desired_capabilities=options.to_capabilities())
         driver.get(url)
         time.sleep(4)
     
@@ -128,14 +126,14 @@ class PhimmoiCrawler :
         return filmDatas
         
     def pushIntoExel(self, filmDatas) : 
-        wb = openpyxl.load_workbook("247PhimLe.xlsx")
+        wb = openpyxl.load_workbook("./FilmExel/247PhimLe.xlsx")
         sheet1 = wb.active
         for rowindex in range(sheet1.max_row+1,sheet1.max_row+2) : 
             for columnindex in range(1,sheet1.max_column+1) : 
                 
                 sheet1.cell(rowindex,column=columnindex).value = filmDatas[sheet1.cell(1,columnindex).value]
 
-        wb.save("247PhimLe.xlsx")
+        wb.save("./FilmExel/247PhimLe.xlsx")
         wb.close()
 
 

@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 import time
 class ProxyManager :
-    __BMP = r"D:\browsermob-proxy-2.1.4\bin\browsermob-proxy.bat"
+    __BMP = r"/home/sunwarder/bin/browsermob-proxy-2.1.4/bin/browsermob-proxy.bat"
     def __init__(self):
         self.__server = Server(path=ProxyManager.__BMP,options={"port" : 9080})
         self.__client = None

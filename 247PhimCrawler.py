@@ -1,4 +1,5 @@
 
+from VideoDownloader import m3u8DownloadIDM
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import selenium
@@ -32,13 +33,13 @@ class PhimmoiCrawler :
         global client
         global server
         options = Options()
-        
+        options.add_extension("./bin/IDM-Integration-Module_v6.38.19.crx")
         options.add_argument(f"--proxy-server={client.proxy}")
         options.add_argument('--ignore-ssl-errors=yes')
         options.add_argument('--ignore-certificate-errors')
         options.add_argument('--disable-gpu')
         options.add_argument("--proxy-bypass-list=*247phim*")
-        driver = webdriver.Chrome(executable_path=r"/home/sunwarder/bin/chromedriver_linux64/chromedriver", chrome_options=options,desired_capabilities=options.to_capabilities())
+        driver = webdriver.Chrome(executable_path=r"./bin/chromedriver", chrome_options=options,desired_capabilities=options.to_capabilities())
         driver.get(url)
         time.sleep(4)
     
@@ -53,7 +54,7 @@ class PhimmoiCrawler :
         global client
         global server
         index = sys.argv[1] or input("Type a index to start from")
-        for page in range(4, 45) : 
+        for page in range(2, 45) : 
             
             films_item = driver.find_elements_by_css_selector(".list-vod .item > a")
             film_links = []
@@ -61,7 +62,6 @@ class PhimmoiCrawler :
             for i in range(int(index),len(films_item)) :
                 film_links.append(films_item.__getitem__(int(i)).get_attribute("href")) 
             for i in range(int(index),len(film_links)) :
-                time.sleep(4)
                 driver.get(film_links[i])
                 try : 
                     filmDatas = self.getFilmsData()
@@ -69,12 +69,15 @@ class PhimmoiCrawler :
                     z=1
            
                 driver.execute_script("document.querySelector('#btnPlay').click()")
-                time.sleep(10)
+                time.sleep(5)
                 driver.execute_script("document.querySelector('#video').click()")
                 driver.find_element_by_css_selector("#video").send_keys(Keys.SPACE)
                 
+                while(True) : 
+                    if(input("Wait for click idm panel to download... Press 1 to confirm pressed") == str(1)) : 
+                        break;
 
-                filmDatas['videoname'] = self.getM3U8File(filmDatas,film_links[i])
+                #filmDatas['videoname'] = self.getM3U8File(filmDatas,film_links[i])
 
                 self.pushIntoExel(filmDatas)
                 print("Page "+str(page)+" , Index" + str(i))
@@ -97,7 +100,6 @@ class PhimmoiCrawler :
 
                     if(m3u8FileParReg.search(str(entry['request']['url']))) :
                         videoname = unidecode(filmDatas['filmname_vi'].replace(" ",""))
-                        m3u8download(unquote(entry['request']['url']),videoname,currenturl)
                         return videoname
                             
             except : 
@@ -138,6 +140,8 @@ class PhimmoiCrawler :
 
 
 
-crawler = PhimmoiCrawler("https://247phim.com/phim/phim-le/nam/2021/trang-4")
+crawler = PhimmoiCrawler("https://247phim.com/phim/phim-le/nam/2021/")
 crawler.interactSiteToAjaxCome(6)
 crawler.GoIntoFilm()
+
+#index 25; page 1
